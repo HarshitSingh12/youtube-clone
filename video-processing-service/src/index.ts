@@ -1,28 +1,57 @@
 import express from "express";
-import ffmpeg from "fluent-ffmpeg";
+import {
+  uploadProcessedVideo,
+  downloadRawVideo,
+  deleteRawVideo,
+  deleteProcessedVideo,
+  convertVideo,
+  setupDirectories,
+} from "./storage";
+
+setupDirectories();
 
 const app = express();
 app.use(express.json());
 const port = process.env.PORT || 3000;
 
-app.get("/process-video", (req, res) => {
-  const inputFilePath = req.body.inputFilePath;
-  const outputFilePath = req.body.outputFilePath;
-
-  if (!inputFilePath || !outputFilePath) {
-    res.status(400).send("Missing input or output file path");
+app.post("/process-video", async (req, res) => {
+  let data;
+  try {
+    const message = Buffer.from(req.body.message.data, "base64").toString(
+      "utf8"
+    );
+    data = JSON.parse(message);
+    if (!data.name) {
+      throw new Error("Invalid message payload received");
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(400).send("Bad Request: Missing filename");
   }
 
-  ffmpeg(inputFilePath)
-    .outputOptions("-vf", "scale = -1:360")
-    .on("end", () => {
-      res.status(200).send("Processing finished successfully");
-    })
-    .on("error", (err) => {
-      console.error(`An error occurred: ${err.message}`);
-      res.status(500).send(`Internal server error: ${err.message}`);
-    })
-    .save(outputFilePath);
+  const inputFilename = data.name;
+  const outputFilename = `processed-${inputFilename}`;
+
+  await downloadRawVideo(inputFilename);
+
+  try {
+    await convertVideo(inputFilename, outputFilename);
+  } catch (err) {
+    Promise.all([
+      deleteRawVideo(inputFilename),
+      deleteProcessedVideo(outputFilename),
+    ]);
+    res.status(500).send("Processing failed");
+  }
+
+  await uploadProcessedVideo(outputFilename);
+
+  Promise.all([
+    deleteRawVideo(inputFilename),
+    deleteProcessedVideo(outputFilename),
+  ]);
+
+  res.status(200).send("Processing finished successfully");
 });
 
 app.listen(port, () => {
