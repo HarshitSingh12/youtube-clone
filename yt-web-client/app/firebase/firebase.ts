@@ -7,12 +7,13 @@ import {
   User,
 } from "firebase/auth";
 import { getFunctions } from "firebase/functions";
+import config from "../../config";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAF0Cm1itVYf7j9oHDtrGv9fEukjAJ3aYA",
-  authDomain: "yt-clone-480e6.firebaseapp.com",
-  projectId: "yt-clone-480e6",
-  appId: "1:1000078528781:web:a73041be42d80191f86044",
+  apiKey: config.apiKey,
+  authDomain: config.authDomain,
+  projectId: config.projectId,
+  appId: config.appId,
 };
 
 // Initialize Firebase
